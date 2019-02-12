@@ -144,7 +144,7 @@ class WSUWP_Deployment {
 			return;
 		}
 
-		if ( isset( $_SERVER['HTTP_X_GITHUB_EVENT'] ) && 'create' === $_SERVER['HTTP_X_GITHUB_EVENT'] && ! empty( $_POST['payload'] ) ) { // @codingStandardsIgnoreLine
+		if ( isset( $_SERVER['HTTP_X_GITHUB_EVENT'] ) && 'push' === $_SERVER['HTTP_X_GITHUB_EVENT'] && ! empty( $_POST['payload'] ) ) { // @codingStandardsIgnoreLine
 			$this->handle_create_webhook();
 		} elseif ( ! isset( $_SERVER['HTTP_X_GITHUB_EVENT'] ) ) {
 			wp_safe_redirect( home_url() );
