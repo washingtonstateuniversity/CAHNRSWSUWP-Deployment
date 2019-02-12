@@ -145,10 +145,65 @@ class WSUWP_Deployment {
 		}
 
 		if ( isset( $_SERVER['HTTP_X_GITHUB_EVENT'] ) && 'release' === $_SERVER['HTTP_X_GITHUB_EVENT'] && ! empty( $_POST['payload'] ) ) { // @codingStandardsIgnoreLine
-			$this->handle_create_webhook();
+			$this->handle_release_webhook();
 		} elseif ( ! isset( $_SERVER['HTTP_X_GITHUB_EVENT'] ) ) {
 			wp_safe_redirect( home_url() );
 		}
+
+		die();
+	}
+
+
+	/**
+	 * Handle the 'create' event passed via webhook from GitHub.
+	 */
+	private function handle_release_webhook() {
+		// This seems overkill, but it is working.
+		$payload = wp_unslash( $_POST['payload'] ); // @codingStandardsIgnoreLine
+		$payload = json_decode( $payload );
+
+		$deployment_data = array(
+			'tag' => false,
+			'ref_type' => 'release',
+			'sender' => false,
+			'avatar_url' => false,
+		);
+
+		// Check for a tag reference and store it.
+		if ( isset( $payload->release->tag_name ) ) {
+			$deployment_data['tag'] = $payload->release->tag_name;
+		} else {
+			die();
+		}
+
+
+		if ( isset( $payload->sender ) ) {
+			$deployment_data['sender'] = $payload->sender->login;
+			$deployment_data['avatar_url'] = $payload->sender->avatar_url;
+		}
+
+		$deployment = get_post( get_the_ID() );
+		$time = time();
+
+		// Build the deployment instance.
+		$title = date( 'Y-m-d H:i:s', $time ) . ' | ' . esc_html( $deployment->post_title ) . ' | ' . esc_html( $deployment_data['tag'] ) . ' | ' . esc_html( $deployment_data['sender'] );
+		$args = array(
+			'post_type' => $this->deploy_instance_slug,
+			'post_title' => $title,
+			'post_status' => 'publish',
+		);
+		$instance_id = wp_insert_post( $args );
+
+		add_post_meta( $instance_id, '_deploy_data', $deployment_data, true );
+
+		$deployments = get_post_meta( get_the_ID(), '_deploy_instances', true );
+		if ( ! is_array( $deployments ) ) {
+			$deployments = array();
+		}
+		$deployments[ $time ] = absint( $instance_id );
+		update_post_meta( get_the_ID(), '_deploy_instances', $deployments );
+
+		$this->handle_deploy( $deployment_data, $deployment );
 
 		die();
 	}
